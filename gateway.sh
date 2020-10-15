@@ -8,7 +8,7 @@ service_url="YOUR_URL"
 
 echo "Start creating WebSocket API"
 api=$(
-    awslocal apigatewayv2 create-api \
+    aws apigatewayv2 create-api \
     --region $region \
     --name $api_name \
     --protocol-type WEBSOCKET \
@@ -24,7 +24,7 @@ echo "Api ID: $api_id"
 echo "Start creating integrations"
 echo "Start creating integration for route -> \$default"
 integration_for_route_default=$(
-    awslocal apigatewayv2 create-integration \
+    aws apigatewayv2 create-integration \
     --api-id $api_id \
     --integration-type HTTP_PROXY \
     --integration-method GET \
@@ -37,11 +37,7 @@ echo "Successfully created integration for route -> \$default"
 echo "Integration ID (default route): $integration_id_for_route_default"
 
 echo "Start creating integration for route -> \$connect"
-integration_for_route_connect=$(
-    awslocal apigatewayv2 create-integration \
-    --api-id $api_id \
-    --integration-type HTTP_PROXY \
-    --integration-method GET \
+integration_for_route_coawGET \
     --integration-uri "$service_url/onconnect"
 )
 
@@ -52,7 +48,7 @@ echo "Integration ID (connect route): $integration_id_for_route_connect"
 
 echo "Start creating integration for route -> \$disconnect"
 integration_for_route_disconnect=$(
-    awslocal apigatewayv2 create-integration \
+    aws apigatewayv2 create-integration \
     --api-id $api_id \
     --integration-type HTTP_PROXY \
     --integration-method GET \
@@ -68,7 +64,7 @@ echo "Start creating routes"
 
 echo "Start creating route -> \$default"
 default_route=$(
-    awslocal apigatewayv2 create-route \
+    aws apigatewayv2 create-route \
     --region $region \
     --api-id $api_id \
     --route-key "\$default" \
@@ -78,7 +74,7 @@ echo "Successfully created route -> \$default"
 
 echo "Start creating route -> \$connect"
 connect_route=$(
-    awslocal apigatewayv2 create-route \
+    aws apigatewayv2 create-route \
     --region $region \
     --api-id $api_id \
     --route-key "\$connect" \
@@ -88,7 +84,7 @@ echo "Successfully created route -> \$connect"
 
 echo "Start creating route -> \$disconnect"
 disconnect_route=$(
-    awslocal apigatewayv2 create-route \
+    aws apigatewayv2 create-route \
     --region $region \
     --api-id $api_id \
     --route-key "\$disconnect" \
@@ -98,7 +94,7 @@ echo "Successfully created route -> \$default"
 
 echo "Start creating deployment"
 deployment=$(
-    awslocal apigatewayv2 create-deployment \
+    aws apigatewayv2 create-deployment \
     --region $region \
     --api-id $api_id
 )
@@ -109,7 +105,7 @@ echo "Deployment ID: $deployment_id"
 
 echo "Start creating stage"
 stage=$(
-    awslocal apigatewayv2 create-stage \
+    aws apigatewayv2 create-stage \
     --region $region \
     --api-id $api_id \
     --deployment-id $deployment_id \
