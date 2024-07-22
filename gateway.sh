@@ -1,114 +1,77 @@
 #!/bin/bash
 set -e
 
+# Define variables
 stage_name="local"
 region="us-east-1"
 api_name="Gateway"
 service_url="YOUR_URL"
 
-echo "Start creating WebSocket API"
-api=$(
-    aws apigatewayv2 create-api \
-    --region $region \
-    --name $api_name \
-    --protocol-type WEBSOCKET \
-    --route-selection-expression \$request.body.action
-)
-echo "WebSocket API successfully created"
+# Function to create API and extract API ID
+create_api_and_extract_id() {
+    echo "Creating WebSocket API..."
+    api=$(aws apigatewayv2 create-api \
+            --region $region \
+            --name $api_name \
+            --protocol-type WEBSOCKET \
+            --route-selection-expression '$request.body.action')
+    api_id=$(echo "$api" | jq -r '.ApiId')
+    echo "WebSocket API ID: $api_id"
+}
 
-echo "WebSocket API: $api"
+# Function to create integration and return its ID
+create_integration() {
+    local route=$1
+    local method=$2
+    local uri=$3
 
-api_id=$(echo "${api}" | jq -r '.ApiId')
-echo "Api ID: $api_id"
+    integration=$(aws apigatewayv2 create-integration \
+                    --api-id $api_id \
+                    --integration-type HTTP_PROXY \
+                    --integration-method $method \
+                    --integration-uri "$uri")
+    echo $(echo "$integration" | jq -r '.IntegrationId')
+}
 
-echo "Start creating integrations"
-echo "Start creating integration for route -> \$default"
-integration_for_route_default=$(
-    aws apigatewayv2 create-integration \
-    --api-id $api_id \
-    --integration-type HTTP_PROXY \
-    --integration-method GET \
-    --integration-uri "$service_url/onmessage"
-)
+# Function to create a route
+create_route() {
+    local route_key=$1
+    local integration_id=$2
 
-integration_id_for_route_default=$(echo "${integration_for_route_default}" | jq -r '.IntegrationId')
-
-echo "Successfully created integration for route -> \$default"
-echo "Integration ID (default route): $integration_id_for_route_default"
-
-echo "Start creating integration for route -> \$connect"
-integration_for_route_coawGET \
-    --integration-uri "$service_url/onconnect"
-)
-
-integration_id_for_route_connect=$(echo "${integration_for_route_connect}" | jq -r '.IntegrationId')
-
-echo "Successfully created integration for route -> \$connect"
-echo "Integration ID (connect route): $integration_id_for_route_connect"
-
-echo "Start creating integration for route -> \$disconnect"
-integration_for_route_disconnect=$(
-    aws apigatewayv2 create-integration \
-    --api-id $api_id \
-    --integration-type HTTP_PROXY \
-    --integration-method GET \
-    --integration-uri "$service_url/ondisconnect"
-)
-
-integration_id_for_route_disconnect=$(echo "${integration_for_route_disconnect}" | jq -r '.IntegrationId')
-
-echo "Integration ID (disconnect route): $integration_id_for_route_disconnect"
-echo "Successfully created all integrations"
-
-echo "Start creating routes"
-
-echo "Start creating route -> \$default"
-default_route=$(
     aws apigatewayv2 create-route \
-    --region $region \
-    --api-id $api_id \
-    --route-key "\$default" \
-    --target integrations/$integration_id_for_route_default
-)
-echo "Successfully created route -> \$default"
+        --region $region \
+        --api-id $api_id \
+        --route-key "$route_key" \
+        --target "integrations/$integration_id"
+}
 
-echo "Start creating route -> \$connect"
-connect_route=$(
-    aws apigatewayv2 create-route \
-    --region $region \
-    --api-id $api_id \
-    --route-key "\$connect" \
-    --target integrations/$integration_id_for_route_connect
-)
-echo "Successfully created route -> \$connect"
+# Function to create a deployment and return its ID
+create_deployment_and_extract_id() {
+    deployment=$(aws apigatewayv2 create-deployment \
+                    --region $region \
+                    --api-id $api_id)
+    echo $(echo "$deployment" | jq -r '.DeploymentId')
+}
 
-echo "Start creating route -> \$disconnect"
-disconnect_route=$(
-    aws apigatewayv2 create-route \
-    --region $region \
-    --api-id $api_id \
-    --route-key "\$disconnect" \
-    --target integrations/$integration_id_for_route_disconnect
-)
-echo "Successfully created route -> \$default"
+# Main execution starts here
+create_api_and_extract_id
 
-echo "Start creating deployment"
-deployment=$(
-    aws apigatewayv2 create-deployment \
-    --region $region \
-    --api-id $api_id
-)
-echo "Successfully created deployment"
+# Create integrations and routes
+for route in "\$default" "\$connect" "\$disconnect"; do
+    uri_suffix=$(echo "$route" | tr -d '$')
+    integration_id=$(create_integration "$route" "GET" "$service_url/on${uri_suffix}")
+    create_route "$route" "$integration_id"
+    echo "Route $route with integration ID $integration_id created successfully."
+done
 
-deployment_id=$(echo "${deployment}" | jq -r '.DeploymentId')
-echo "Deployment ID: $deployment_id"
+# Create deployment and stage
+deployment_id=$(create_deployment_and_extract_id)
+echo "Deployment ID: $deployment_id created successfully."
 
-echo "Start creating stage"
-stage=$(
-    aws apigatewayv2 create-stage \
+echo "Creating stage..."
+aws apigatewayv2 create-stage \
     --region $region \
     --api-id $api_id \
     --deployment-id $deployment_id \
     --stage-name $stage_name
-)
-echo "Successfully created stage: $stage"
+echo "Stage $stage_name created successfully."
