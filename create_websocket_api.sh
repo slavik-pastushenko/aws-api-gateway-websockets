@@ -7,7 +7,7 @@ region="us-east-1"
 api_name="Gateway"
 service_url="YOUR_URL"
 
-# Function to create API and extract API ID
+# Create API and extract API ID
 create_api_and_extract_id() {
     echo "Creating WebSocket API..."
     api=$(aws apigatewayv2 create-api \
@@ -19,7 +19,7 @@ create_api_and_extract_id() {
     echo "WebSocket API ID: $api_id"
 }
 
-# Function to create integration and return its ID
+# Create integration and return its ID
 create_integration() {
     local route=$1
     local method=$2
@@ -33,7 +33,7 @@ create_integration() {
     echo $(echo "$integration" | jq -r '.IntegrationId')
 }
 
-# Function to create a route
+# Create a route
 create_route() {
     local route_key=$1
     local integration_id=$2
@@ -45,7 +45,7 @@ create_route() {
         --target "integrations/$integration_id"
 }
 
-# Function to create a deployment and return its ID
+# Create a deployment and return its ID
 create_deployment_and_extract_id() {
     deployment=$(aws apigatewayv2 create-deployment \
                     --region $region \
